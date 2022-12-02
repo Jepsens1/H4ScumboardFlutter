@@ -1,4 +1,4 @@
-import 'package:my_app/screens/ApiHandler.dart';
+import 'package:my_app/ApiHandler.dart';
 
 class LoginManager {
   ApiHandler handler = ApiHandler();

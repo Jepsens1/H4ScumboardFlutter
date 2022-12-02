@@ -4,7 +4,8 @@ import 'package:boardview/boardview.dart';
 import 'package:boardview/boardview_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/BoardListObject.dart';
-import 'package:my_app/screens/ScrumTaskManager.dart';
+import 'package:my_app/FirebaseNotify.dart';
+import 'package:my_app/ScrumTaskManager.dart';
 
 class ScrumBoard extends StatefulWidget {
   const ScrumBoard({super.key});
@@ -14,9 +15,11 @@ class ScrumBoard extends StatefulWidget {
 
 class _ScrumBoardState extends State<ScrumBoard> {
   late ScrumTaskManager manager;
+  late FirebaseNotify notify;
   List<BoardPostColumn> data = [];
   final _formKey = GlobalKey<FormState>();
   final List<String> states = ['Todo', 'In Progress', 'Done'];
+  String stringstate = 'Todo';
 
   late BoardViewController boardViewController;
   final List<TextEditingController> textscontrollers =
@@ -45,24 +48,27 @@ class _ScrumBoardState extends State<ScrumBoard> {
     task.taskName = textscontrollers[0].text;
     task.taskDescription = textscontrollers[1].text;
     task.storyPoints = int.parse(textscontrollers[2].text);
-    BoardPost result = await manager.UpdateTask(task);
+    await manager.UpdateTask(task);
+    var result = await manager.GetData();
     setState(() {
-      task = result;
+      data = result;
+      stringstate = "Todo";
       textscontrollers[0].clear();
       textscontrollers[1].clear();
       textscontrollers[2].clear();
     });
   }
 
-  void _AddTask(String? state) async {
+  void _AddTask() async {
     BoardPost task = BoardPost();
     task.taskName = textscontrollers[0].text;
     task.taskDescription = textscontrollers[1].text;
     task.storyPoints = int.parse(textscontrollers[2].text);
-    task.taskState = state;
+    task.taskState = stringstate;
     var result = await manager.CreateTask(task);
     if (result.taskState?.toLowerCase() == "todo") {
       setState(() {
+        stringstate = "Todo";
         textscontrollers[0].clear();
         textscontrollers[1].clear();
         textscontrollers[2].clear();
@@ -71,6 +77,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
     }
     if (result.taskState?.toLowerCase() == "in progress") {
       setState(() {
+        stringstate = "Todo";
         textscontrollers[0].clear();
         textscontrollers[1].clear();
         textscontrollers[2].clear();
@@ -79,6 +86,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
     }
     if (result.taskState?.toLowerCase() == "done") {
       setState(() {
+        stringstate = "Todo";
         textscontrollers[0].clear();
         textscontrollers[1].clear();
         textscontrollers[2].clear();
@@ -92,6 +100,11 @@ class _ScrumBoardState extends State<ScrumBoard> {
     super.initState();
     boardViewController = BoardViewController();
     manager = ScrumTaskManager();
+    notify = FirebaseNotify();
+    notify.requestPermission();
+    notify.loadFCM();
+    notify.listenFCM();
+    notify.getToken();
   }
 
   @override
@@ -123,89 +136,95 @@ class _ScrumBoardState extends State<ScrumBoard> {
         onPressed: () {
           showDialog(
               context: context,
-              builder: (BuildContext context) {
-                String stateselected = states.first;
-                return AlertDialog(
-                  title: Text('Add new Task'),
-                  content: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        Text('Task Name'),
-                        TextFormField(
-                          controller: textscontrollers[0],
-                          decoration: InputDecoration(
-                            hintText: 'Name of task',
+              builder: (context) {
+                return StatefulBuilder(
+                  builder: (BuildContext context, StateSetter setStateSb) =>
+                      AlertDialog(
+                    title: const Text('Add Task'),
+                    content: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          const Text('Task Name'),
+                          TextFormField(
+                            controller: textscontrollers[0],
+                            decoration:
+                                const InputDecoration(hintText: "Name of task"),
+                            validator: (text) {
+                              if (text == null || text.isEmpty) {
+                                return 'Task Name cant be empty';
+                              }
+                              return null;
+                            },
                           ),
-                          validator: (text) {
-                            if (text == null || text.isEmpty) {
-                              return 'Task name cant be empty';
-                            }
-                            return null;
-                          },
-                        ),
-                        Text('Task Description'),
-                        TextFormField(
-                          controller: textscontrollers[1],
-                          decoration: const InputDecoration(
-                            hintText: 'Description text',
+                          const Text('Task Description'),
+                          TextFormField(
+                            controller: textscontrollers[1],
+                            decoration: const InputDecoration(
+                                hintText: "Task Description"),
+                            validator: (text) {
+                              if (text == null || text.isEmpty) {
+                                return 'Task Description cant be empty';
+                              }
+                              return null;
+                            },
                           ),
-                          validator: (text) {
-                            if (text == null || text.isEmpty) {
-                              return 'Task Description cant be empty';
-                            }
-                            return null;
-                          },
-                        ),
-                        Text('Story Points'),
-                        TextFormField(
-                          controller: textscontrollers[2],
-                          decoration: InputDecoration(
-                            hintText: '0',
+                          const Text('Story Points'),
+                          TextFormField(
+                            controller: textscontrollers[2],
+                            decoration: const InputDecoration(
+                              hintText: "Story points",
+                            ),
+                            validator: (text) {
+                              if (text == null || text.isEmpty) {
+                                return 'Story Points cant be empty';
+                              }
+                              return null;
+                            },
                           ),
-                          validator: (text) {
-                            if (text == null || text.isEmpty) {
-                              return 'Story Points cant be empty';
-                            }
-                            return null;
-                          },
-                        ),
-                        Text('Task State'),
-                        DropdownButton<String>(
-                          value: stateselected,
-                          icon: const Icon(Icons.arrow_downward),
-                          elevation: 16,
-                          style: const TextStyle(
-                            color: Colors.blue,
+                          const Text('Task State'),
+                          DropdownButton(
+                            value: stringstate,
+                            icon: const Icon(Icons.arrow_downward),
+                            elevation: 16,
+                            style: const TextStyle(
+                              color: Colors.blue,
+                            ),
+                            underline: Container(
+                              height: 2,
+                              color: Colors.blue,
+                            ),
+                            items: states.map((String items) {
+                              return DropdownMenuItem(
+                                value: items,
+                                child: Text(items),
+                              );
+                            }).toList(),
+                            onChanged: (String? value) {
+                              setStateSb(() {
+                                stringstate = value!;
+                              });
+                            },
                           ),
-                          underline: Container(
-                            height: 2,
-                            color: Colors.blue,
-                          ),
-                          onChanged: (String? value) {
-                            setState(() {
-                              stateselected = value!;
-                            });
-                          },
-                          items: states
-                              .map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                        ),
-                        ElevatedButton(
-                          child: Text('Add Task'),
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              _AddTask(stateselected);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Added Task')));
-                            }
-                          },
-                        )
-                      ],
+                          ElevatedButton(
+                            onPressed: () {
+                              if (_formKey.currentState!.validate()) {
+                                setStateSb(() {
+                                  _AddTask();
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Added Task')));
+                                Navigator.of(context).pop();
+                                notify.sendPushMessage(
+                                    'User added new task: ${textscontrollers[0].text}',
+                                    'Added Task');
+                              }
+                            },
+                            child: const Text('Submit'),
+                          )
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -294,118 +313,130 @@ class _ScrumBoardState extends State<ScrumBoard> {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Deleted Task')));
                         Navigator.pop(context);
+                        notify.sendPushMessage(
+                            'User deleted task ${data[listIndex].items[itemIndex].taskName}',
+                            'Deleted Task');
                       },
                     ),
                     TextButton(
-                      child: Text('Change'),
-                      onPressed: () {
-                        showDialog(
-                            context: context,
-                            builder: ((context) {
-                              return AlertDialog(
-                                title: Text('Task Informations'),
-                                content: Form(
-                                  key: _formKey,
-                                  child: Column(
-                                    children: [
-                                      Text('Task Name'),
-                                      TextFormField(
-                                        controller: textscontrollers[0],
-                                        decoration: InputDecoration(
-                                          hintText: data[listIndex]
-                                              .items[itemIndex]
-                                              .taskName,
-                                        ),
-                                        validator: (text) {
-                                          if (text == null || text.isEmpty) {
-                                            return 'Task Name cant be empty';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      Text('Task Description'),
-                                      TextFormField(
-                                        controller: textscontrollers[1],
-                                        decoration: InputDecoration(
-                                          hintText: data[listIndex]
-                                              .items[itemIndex]
-                                              .taskDescription,
-                                        ),
-                                        validator: (text) {
-                                          if (text == null || text.isEmpty) {
-                                            return 'Task Description cant be empty';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      Text('Story Points'),
-                                      TextFormField(
-                                        controller: textscontrollers[2],
-                                        decoration: InputDecoration(
-                                          hintText: data[listIndex]
-                                              .items[itemIndex]
-                                              .storyPoints
-                                              .toString(),
-                                        ),
-                                        validator: (text) {
-                                          if (text == null || text.isEmpty) {
-                                            return 'Story Points cant be empty';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-                                      Text('Task State'),
-                                      DropdownButton<String>(
-                                        value: data[listIndex]
-                                            .items[itemIndex]
-                                            .taskState,
-                                        icon: const Icon(Icons.arrow_downward),
-                                        elevation: 16,
-                                        style: const TextStyle(
-                                          color: Colors.blue,
-                                        ),
-                                        underline: Container(
-                                          height: 2,
-                                          color: Colors.blue,
-                                        ),
-                                        onChanged: (String? value) {
-                                          setState(() {
-                                            data[listIndex]
+                        child: Text('Change'),
+                        onPressed: () {
+                          showDialog(
+                              context: context,
+                              builder: (context) {
+                                return StatefulBuilder(
+                                  builder: (BuildContext context,
+                                          StateSetter setStateSb) =>
+                                      AlertDialog(
+                                    title: Text('Update Task'),
+                                    content: Form(
+                                      key: _formKey,
+                                      child: Column(
+                                        children: [
+                                          Text('Task Name'),
+                                          TextFormField(
+                                            controller: textscontrollers[0],
+                                            decoration: InputDecoration(
+                                                hintText: data[listIndex]
+                                                    .items[itemIndex]
+                                                    .taskName),
+                                            validator: (text) {
+                                              if (text == null ||
+                                                  text.isEmpty) {
+                                                return 'Task Name cant be empty';
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                          Text('Task Description'),
+                                          TextFormField(
+                                            controller: textscontrollers[1],
+                                            decoration: InputDecoration(
+                                                hintText: data[listIndex]
+                                                    .items[itemIndex]
+                                                    .taskDescription),
+                                            validator: (text) {
+                                              if (text == null ||
+                                                  text.isEmpty) {
+                                                return 'Task Description cant be empty';
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                          Text('Story Points'),
+                                          TextFormField(
+                                            controller: textscontrollers[2],
+                                            decoration: InputDecoration(
+                                              hintText: data[listIndex]
+                                                  .items[itemIndex]
+                                                  .storyPoints
+                                                  .toString(),
+                                            ),
+                                            validator: (text) {
+                                              if (text == null ||
+                                                  text.isEmpty) {
+                                                return 'Story Points cant be empty';
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                          Text('Task State'),
+                                          DropdownButton(
+                                            value: data[listIndex]
                                                 .items[itemIndex]
-                                                .taskState = value!;
-                                          });
-                                        },
-                                        items: states
-                                            .map<DropdownMenuItem<String>>(
-                                                (String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        }).toList(),
+                                                .taskState,
+                                            icon: const Icon(
+                                                Icons.arrow_downward),
+                                            elevation: 16,
+                                            style: const TextStyle(
+                                              color: Colors.blue,
+                                            ),
+                                            underline: Container(
+                                              height: 2,
+                                              color: Colors.blue,
+                                            ),
+                                            items: states.map((String items) {
+                                              return DropdownMenuItem(
+                                                value: items,
+                                                child: Text(items),
+                                              );
+                                            }).toList(),
+                                            onChanged: (String? value) {
+                                              setStateSb(() {
+                                                data[listIndex]
+                                                    .items[itemIndex]
+                                                    .taskState = value!;
+                                              });
+                                            },
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              if (_formKey.currentState!
+                                                  .validate()) {
+                                                setStateSb(() {
+                                                  _UpdateTask(data[listIndex]
+                                                      .items[itemIndex]);
+                                                });
+
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(const SnackBar(
+                                                        content: Text(
+                                                            'Updated Task')));
+                                                Navigator.of(context).pop();
+                                                notify.sendPushMessage(
+                                                    'User updated task ${data[listIndex].items[itemIndex].taskName}',
+                                                    'Updated Task');
+                                              }
+                                            },
+                                            child: Text('Submit Changes'),
+                                          )
+                                        ],
                                       ),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          if (_formKey.currentState!
-                                              .validate()) {
-                                            _UpdateTask(data[listIndex]
-                                                .items[itemIndex]);
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(const SnackBar(
-                                                    content:
-                                                        Text('Updated Task')));
-                                            Navigator.of(context).pop();
-                                          }
-                                        },
-                                        child: Text('Submit Changes'),
-                                      )
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              );
-                            }));
-                      },
-                    ),
+                                );
+                              });
+                        }),
                   ],
                 );
               });

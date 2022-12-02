@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/LoginManager.dart';
 import 'package:my_app/main.dart';
-import 'package:my_app/screens/LoginManager.dart';
+import 'package:my_app/screens/scrumboardscreen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -80,7 +81,7 @@ class _LoginPageState extends State<LoginPage> {
                   if (await manager.Login(
                       usernameController.text, passwordController.text)) {
                     Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const MyHomePage()));
+                        MaterialPageRoute(builder: (_) => const ScrumBoard()));
                   } else {
                     showDialog(
                       context: context,
