@@ -12,6 +12,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   late LoginManager manager;
+  //_formkey is used to validate that all forms fields are valid
   final _formKey = GlobalKey<FormState>();
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
@@ -77,6 +78,8 @@ class _LoginPageState extends State<LoginPage> {
             ElevatedButton(
               child: const Text('Login'),
               onPressed: () async {
+                //If form is valid we post api call and expects the return to be true
+                //If true then opens up Scrumboard Widget else shows dialog
                 if (_formKey.currentState!.validate()) {
                   if (await manager.Login(
                       usernameController.text, passwordController.text)) {
@@ -94,6 +97,7 @@ class _LoginPageState extends State<LoginPage> {
                 }
               },
             ),
+             //If form is valid we post api call and expects the return to be true
             ElevatedButton(
               child: const Text('Register'),
               onPressed: () async {
@@ -124,6 +128,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+//Returns AlertDialog widget
+//Parameters title, description
 Widget _buildPopUp(
     BuildContext context, String alertTitle, String alertDescription) {
   return AlertDialog(

@@ -1,10 +1,9 @@
+import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app/screens/login.dart';
-import 'package:my_app/screens/scrumboardscreen.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-//final fcmToken = await FirebaseMessaging.instance.getToken()
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
@@ -15,12 +14,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  HttpOverrides.global = MyHttpOverrides();
   await Firebase.initializeApp();
+  //Background message is when a app is open but the app is in the background
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const MyApp());
 }
 
+
+/**
+ *  This class is root of application
+ * opens up the LoginPage widget
+ */
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -37,29 +43,15 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
-
+/**
+ * This class is used for a localhost api to work with android emulator
+ * 
+ */
+//If this is not being used we get error: CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate
+class MyHttpOverrides extends HttpOverrides{
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('ScrumBoard'),
-        automaticallyImplyLeading: false,
-      ),
-      body: const ScrumBoard(),
-    );
+  HttpClient createHttpClient(SecurityContext? context){
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port)=> true;
   }
 }

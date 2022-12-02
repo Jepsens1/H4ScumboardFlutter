@@ -1,13 +1,20 @@
+/**
+ * BoardPostColumn contains a title parameter "todo" "in progress" "done"
+ * contains a List of BoardPost, So a 'todo' BoardPostColumn can have mutiple BoardPost objects
+ */
 class BoardPostColumn {
   String title;
   List<BoardPost> items;
-
+  //
   BoardPostColumn({
     required this.title,
     required this.items,
   });
 }
 
+/**
+ * This class is used to display a ScrumTask
+ */
 class BoardPost {
   int? id;
   String? taskName;

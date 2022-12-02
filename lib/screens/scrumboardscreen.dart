@@ -16,8 +16,12 @@ class ScrumBoard extends StatefulWidget {
 class _ScrumBoardState extends State<ScrumBoard> {
   late ScrumTaskManager manager;
   late FirebaseNotify notify;
+  //This data is the one being showed on the screen
   List<BoardPostColumn> data = [];
+    //_formkey is used to validate that all forms fields are valid
   final _formKey = GlobalKey<FormState>();
+
+  //Used for DropDownMenu
   final List<String> states = ['Todo', 'In Progress', 'Done'];
   String stringstate = 'Todo';
 
@@ -25,6 +29,9 @@ class _ScrumBoardState extends State<ScrumBoard> {
   final List<TextEditingController> textscontrollers =
       List.generate(3, (i) => TextEditingController());
 
+  /**
+   * Gets data from ScrumTaskManger and assigns the data to List<BoardPostColumn> data
+   */
   Future<List<BoardPostColumn>> GetData() async {
     if (data.isEmpty) {
       data = await manager.GetData();
@@ -32,6 +39,10 @@ class _ScrumBoardState extends State<ScrumBoard> {
     return data;
   }
 
+/**
+ * Calls api to remove task using the index parameter
+ * SetState and removes BoardPost object from data object where the id is equal to the index provided
+ */
   void _RemoveTask(int? index) async {
     if (await manager.RemoveTask(index)) {
       setState(() {
@@ -43,14 +54,19 @@ class _ScrumBoardState extends State<ScrumBoard> {
       throw Exception('Failed to delete');
     }
   }
-
+/**Takes in a BoardPost object and assigns the task property to be equal to the TextControllers
+ * Calls api to update task 
+ */
   void _UpdateTask(BoardPost task) async {
     task.taskName = textscontrollers[0].text;
     task.taskDescription = textscontrollers[1].text;
     task.storyPoints = int.parse(textscontrollers[2].text);
     await manager.UpdateTask(task);
+    //Needs to call GetData method, otherwise the UI would not update
+    //Gets a List<BoardPostColumn>
     var result = await manager.GetData();
     setState(() {
+      //sets the data to be equal to result from GetData
       data = result;
       stringstate = "Todo";
       textscontrollers[0].clear();
@@ -59,13 +75,18 @@ class _ScrumBoardState extends State<ScrumBoard> {
     });
   }
 
+  /**Creates a new BoardPost object and sets the data from TextsControllers
+   * Calls api to create task
+   */
   void _AddTask() async {
     BoardPost task = BoardPost();
     task.taskName = textscontrollers[0].text;
     task.taskDescription = textscontrollers[1].text;
     task.storyPoints = int.parse(textscontrollers[2].text);
     task.taskState = stringstate;
+    //Gets a BoardPost object
     var result = await manager.CreateTask(task);
+    //depending on which the newly task is we add it the to data object
     if (result.taskState?.toLowerCase() == "todo") {
       setState(() {
         stringstate = "Todo";
@@ -100,6 +121,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
     super.initState();
     boardViewController = BoardViewController();
     manager = ScrumTaskManager();
+    //Calls different Firebase methods to make the notication work
     notify = FirebaseNotify();
     notify.requestPermission();
     notify.loadFCM();
@@ -118,6 +140,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      //uses a FutureBuilder because ones data object is not null, it will start displaying the data, or if data object has changed
       body: FutureBuilder(
           future: GetData(),
           builder: ((context, snapshot) {
@@ -132,11 +155,14 @@ class _ScrumBoardState extends State<ScrumBoard> {
               boardViewController: boardViewController,
             );
           })),
+      //Created a simple button that opens a dialog where you can specify a new task
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           showDialog(
               context: context,
               builder: (context) {
+                //Uses a StatefulBuilder because otherwise the DropdownMenu will not update
+                //The StatefulBuilder, creates a widget that both has state and delegates its build to a callback.
                 return StatefulBuilder(
                   builder: (BuildContext context, StateSetter setStateSb) =>
                       AlertDialog(
@@ -194,6 +220,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
                               height: 2,
                               color: Colors.blue,
                             ),
+                            //States is a list that contains "To do" "In Progress" or "Done"
                             items: states.map((String items) {
                               return DropdownMenuItem(
                                 value: items,
@@ -208,14 +235,18 @@ class _ScrumBoardState extends State<ScrumBoard> {
                           ),
                           ElevatedButton(
                             onPressed: () {
+                              //if form is valid we call the _AddTask method
                               if (_formKey.currentState!.validate()) {
                                 setStateSb(() {
                                   _AddTask();
                                 });
+                              //Shows a little pop op on the bottom of screen that task has being added
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                         content: Text('Added Task')));
+
                                 Navigator.of(context).pop();
+                                //Sends a push notication with the new task name
                                 notify.sendPushMessage(
                                     'User added new task: ${textscontrollers[0].text}',
                                     'Added Task');
@@ -237,7 +268,11 @@ class _ScrumBoardState extends State<ScrumBoard> {
     );
   }
 
-  ///Creates a [BoardList] with drag n drop functionality
+  /**Creates a [BoardList] with drag n drop functionality
+   * Takes in a BoardPostColumn and BuildContext as parameter
+   * Returns a BoardView
+   */
+  
   BoardList CreateBoardList(BoardPostColumn list, BuildContext context) {
     List<BoardItem> items = [];
     for (int i = 0; i < list.items.length; i++) {
@@ -269,7 +304,9 @@ class _ScrumBoardState extends State<ScrumBoard> {
     );
   }
 
-  ///Creates each individuel [BoardItem] of time [BoardPost] that will be used in the [BoardList]
+  /**Creates each individuel [BoardItem] of [BoardPost] that will be used in the [BoardList]
+   * Creates a onTapItem that opens a Dialog, where you can delete or update the selected task
+  */
   BoardItem buildBoardItem(BoardPost itemObject, BuildContext context) {
     return BoardItem(
         onStartDragItem:
@@ -280,9 +317,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
           var item = data[oldListIndex!].items[oldItemIndex!];
           data[oldListIndex].items.removeAt(oldItemIndex);
           data[listIndex!].items.insert(itemIndex!, item);
-          //item.state;
         },
-        //Holder for tasks, use ontap to rename the thingy
         onTapItem:
             (int? listIndex, int? itemIndex, BoardItemState? state) async {
           showDialog(
@@ -313,6 +348,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Deleted Task')));
                         Navigator.pop(context);
+                        //Sends a push notication when a task is deleted
                         notify.sendPushMessage(
                             'User deleted task ${data[listIndex].items[itemIndex].taskName}',
                             'Deleted Task');
@@ -324,6 +360,8 @@ class _ScrumBoardState extends State<ScrumBoard> {
                           showDialog(
                               context: context,
                               builder: (context) {
+                                //Uses a StatefulBuilder because otherwise the DropdownMenu will not update
+                                //The StatefulBuilder, creates a widget that both has state and delegates its build to a callback.
                                 return StatefulBuilder(
                                   builder: (BuildContext context,
                                           StateSetter setStateSb) =>
@@ -411,6 +449,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
                                           ),
                                           ElevatedButton(
                                             onPressed: () {
+                                               //if form is valid we call the _AddTask method
                                               if (_formKey.currentState!
                                                   .validate()) {
                                                 setStateSb(() {
@@ -423,6 +462,7 @@ class _ScrumBoardState extends State<ScrumBoard> {
                                                         content: Text(
                                                             'Updated Task')));
                                                 Navigator.of(context).pop();
+                                                  //Sends a push notication with the updated task name
                                                 notify.sendPushMessage(
                                                     'User updated task ${data[listIndex].items[itemIndex].taskName}',
                                                     'Updated Task');

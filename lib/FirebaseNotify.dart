@@ -5,17 +5,26 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 
+/**
+ * This Class is being used to send a push notication to a user when a event has happened
+ */
 class FirebaseNotify {
   late AndroidNotificationChannel channel;
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
   String? mtoken = " ";
 
+/**
+ * Gets the token of a device and saves it
+ */
   void getToken() async {
     await FirebaseMessaging.instance.getToken().then((token) {
       mtoken = token;
     });
   }
 
+/**
+ * Request permission to send notications
+ */
   void requestPermission() async {
     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
@@ -38,7 +47,9 @@ class FirebaseNotify {
       print('User declined or has not accepted permission');
     }
   }
-
+  /**
+   * Sends a message to a device with stored token with the parameters provided
+   */
   void sendPushMessage(String body, String title) async {
     try {
       await http.post(
@@ -65,8 +76,12 @@ class FirebaseNotify {
       print("error push notification");
     }
   }
-
+  /**
+   * This method is being used to handle a foreground notication
+   * Foreground is when the application is open, in view and in use.
+   */
   void listenFCM() async {
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       RemoteNotification? notification = message.notification;
       AndroidNotification? android = message.notification?.android;
@@ -78,8 +93,6 @@ class FirebaseNotify {
           NotificationDetails(
             android: AndroidNotificationDetails(
               channel.id, channel.name,
-              // TODO add a proper drawable resource to android, for now using
-              //      one that already exists in example aspp.
               icon: 'launch_background',
             ),
           ),
@@ -99,17 +112,12 @@ class FirebaseNotify {
 
       flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-      /// Create an Android Notification Channel.
-      ///
-      /// We use this channel in the `AndroidManifest.xml` file to override the
-      /// default FCM channel to enable heads up notifications.
+
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(channel);
 
-      /// Update the iOS foreground notification presentation options to allow
-      /// heads up notifications.
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
         alert: true,
